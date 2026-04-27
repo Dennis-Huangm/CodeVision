@@ -1,5 +1,5 @@
 working_dir: ./
-excludes: ["/.git/", "result/"]
+excludes: ["/.git/", "result/", "saves/"]
 env_vars:
   TORCH_NCCL_AVOID_RECORD_STREAMS: "1"
   HYDRA_FULL_ERROR: "1"

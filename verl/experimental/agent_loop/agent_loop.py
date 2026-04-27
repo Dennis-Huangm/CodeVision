@@ -937,9 +937,10 @@ class AgentLoopManager:
                 for worker, chunk in zip(self.agent_loop_workers, chunkes, strict=True)
             ]
         )
+        self._normalize_output_non_tensor_batches(outputs)
         try:
             output = DataProto.concat(outputs)
-        except Exception as e:
+        except Exception:
             self._debug_non_tensor_batch(outputs, "generate_sequences")
             raise
         if self.config.actor_rollout_ref.rollout.free_cache_engine:
@@ -953,6 +954,53 @@ class AgentLoopManager:
         # Aggregate tool-aware rewards in a dedicated helper for clarity
         self._post_aggregate_tool_rewards(output)
         return output
+
+    def _normalize_output_non_tensor_batches(self, outputs: list[DataProto]) -> None:
+        keys = set()
+        for output in outputs:
+            keys.update(getattr(output, "non_tensor_batch", {}).keys())
+
+        for output in outputs:
+            batch_size = len(output)
+            non_tensor_batch = getattr(output, "non_tensor_batch", {})
+            for key in keys - set(non_tensor_batch):
+                non_tensor_batch[key] = np.array([None] * batch_size, dtype=object)
+
+    def _debug_non_tensor_batch(self, outputs: list[DataProto], context: str) -> None:
+        try:
+            summaries = []
+            for index, output in enumerate(outputs):
+                batch = getattr(output, "batch", None)
+                batch_keys = []
+                if batch is not None:
+                    keys = getattr(batch, "keys", None)
+                    if callable(keys):
+                        batch_keys = list(keys())
+
+                non_tensor_batch = getattr(output, "non_tensor_batch", {}) or {}
+                non_tensor_summary = {}
+                for key, value in non_tensor_batch.items():
+                    shape = getattr(value, "shape", None)
+                    non_tensor_summary[key] = {
+                        "shape": tuple(shape) if shape is not None else None,
+                        "dtype": str(getattr(value, "dtype", type(value))),
+                    }
+
+                summaries.append(
+                    {
+                        "index": index,
+                        "batch_keys": batch_keys,
+                        "non_tensor_batch": non_tensor_summary,
+                        "meta_info_keys": list(getattr(output, "meta_info", {}).keys()),
+                    }
+                )
+            logger.warning(
+                "DataProto concat failed in %s; output summaries=%s",
+                context,
+                summaries,
+            )
+        except Exception:
+            logger.exception("Failed to summarize non_tensor_batch while debugging %s", context)
 
     def _performance_metrics(self, metrics: list[list[dict[str, str]]], output: DataProto) -> dict[str, float]:
         timing = {}
