@@ -1,0 +1,59 @@
+hydra:
+  searchpath:
+    - file://verl/trainer/config
+
+defaults:
+  - ppo_trainer
+  - _self_
+
+data:
+  max_prompt_length: 4096
+  max_response_length: 4096
+  train_batch_size: 8
+  val_batch_size: 8
+  return_raw_chat: True
+  custom_cls:
+    path: "recipe/codevision/uvtr.py"
+    name: CustomRLHFDataset
+  allow_heterogeneous_schemas: True
+  filter_overlong_prompts: False
+  truncation: error
+  return_multi_modal_inputs: False
+  auto_generate_code_image_tool_kwargs: True
+  code_image_tool_name: code_image_tool
+  need_tools_kwargs: False
+
+reward_model:
+  reward_manager: uvtr
+  format_reward_weight: 0.0
+  exec_reward_weight: 0.0
+  emerge_reward_weight: 0.0
+  tool_reward:
+    enable: False
+    alpha: 0.0
+    beta: 0.0
+    gamma: 0.0
+    delta: 0.0
+  exploration_reward:
+    enable: False
+    weight: 0.0
+    decay_steps: 0
+
+actor_rollout_ref:
+  hybrid_engine: True
+  rollout:
+    name: vllm
+    multi_turn:
+      enable: True
+      max_assistant_turns: 3
+      max_parallel_calls: 1
+      tool_config_path: "recipe/meter_r1/code_image_tool_config.yaml"
+      max_tool_response_length: 4096
+      format: hermes
+
+trainer:
+  log_train_generations: 0
+
+custom_reward_function:
+  path: "recipe/meter_r1/reward.py"
+  name: compute_score

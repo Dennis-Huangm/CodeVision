@@ -1,0 +1,29 @@
+tools:
+  - class_name: "verl.tools.code_image_tool.CodeImageTool"
+    config:
+      type: native
+      num_workers: 8
+      rate_limit: 16
+      timeout: 1
+      max_code_length: 1024
+      enable_global_rate_limit: true
+    tool_schema:
+      type: "function"
+      function:
+        name: "code_image_tool"
+        description: "A focused image inspection tool for analog meter reading. Use it primarily to crop or zoom into the pointer, scale, tick labels, or selected multimeter mode before giving the final reading. Do not rotate or flip unless the prompt/image clearly requires it."
+        parameters:
+          type: "object"
+          properties:
+            code:
+              type: "string"
+              description: |
+                Python code to inspect the image. Use the input PIL image as `image` or `img`; drawing helpers are available through `draw`. Return a PIL Image object in `result` or `output`. Prefer crop/zoom operations around the meter face, scale, pointer tip, and mode selector.
+            description:
+              type: "string"
+              description: "Short description of what region or visual cue the code inspects."
+            image_index:
+              type: "integer"
+              minimum: 0
+              description: "Index of the image in the trajectory to process, starting at 0."
+          required: ["code", "description", "image_index"]
